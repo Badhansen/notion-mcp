@@ -60,9 +60,11 @@ Project structure:
 notion-mcp/
 ├── src/
 │ └── server.py
-├── pyproject.toml
 ├── .env
-└── README.md
+├── .python-version
+├── README.md
+├── pyproject.toml
+└── uv.lock
 ```
 
 ## Contributing
