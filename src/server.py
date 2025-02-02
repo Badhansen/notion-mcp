@@ -122,7 +122,6 @@ async def complete_todo_on_page(task_id: str) -> None:
         None
     """
     todos = await fetch_todos_on_page(PAGE_ID)
-    print(todos)
     
     if not any(todo.get("task_id") == task_id for todo in todos):
         raise ValueError(f"No to-do item found with title: {task_id}")
@@ -197,7 +196,7 @@ async def handle_show_all_todos() -> Sequence[TextContent | EmbeddedResource]:
     todos = await fetch_todos_on_page(PAGE_ID)
     if todos:
         todo_list = "\n".join([
-            f"- {todo['text']} (Completed: {'Yes' if todo['checked'] else 'No'})"
+            f"- {todo['task_id']}: {todo['text']} (Completed: {'Yes' if todo['checked'] else 'No'})"
             for todo in todos
         ])
         return [
@@ -231,17 +230,17 @@ async def handle_complete_todo(arguments: dict) -> Sequence[TextContent | Embedd
     if not isinstance(arguments, dict):
         raise ValueError("Invalid arguments")
     
-    title = arguments.get("title")
+    task_id = arguments.get("task_id")
     
-    if not title:
-        raise ValueError("Title is required")
+    if not task_id:
+        raise ValueError("Task_ID is required")
     
     try:
-        await complete_todo_on_page(title)
+        await complete_todo_on_page(task_id)
         return [
             TextContent(
                 type="text",
-                text=f"Marked todo as complete (Title: {title})"
+                text=f"Marked todo as complete (Task_ID: {task_id})"
             )
         ]
     except httpx.HTTPError as e:
@@ -292,12 +291,12 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "title": {
+                    "task_id": {
                         "type": "string",
-                        "description": "The title of the todo task to mark as complete."
+                        "description": "The task_id of the todo task to mark as complete."
                     }
                 },
-                "required": ["title"]
+                "required": ["task_id"]
             }
         ),
     ]
