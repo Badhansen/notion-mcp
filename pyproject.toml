@@ -1,0 +1,11 @@
+[project]
+name = "notion-mcp"
+version = "1.0.0"
+description = "A simple Model Context Protocol (MCP) server that integrates with Notion's API to manage my personal todo list."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.28.1",
+    "mcp[cli]>=1.2.1",
+    "python-dotenv>=1.0.1",
+]
