@@ -4,15 +4,21 @@ A simple Model Context Protocol (MCP) server that integrates with Notion's API t
 
 ## Demo
 
-<div align="center">
-  <video src="https://github.com/Badhansen/notion-mcp/assets/videos/notion-mcp.mp4" width="600" />
-</div>
+![Demo](docs/assets/videos/notion-mcp.gif)
 
-![Notion MCP Query 1](docs/assets/images/query1.png)
+## Visual Guide
 
-![Notion MCP Query 1](docs/assets/images/query1.png)
+#### Notion MCP Query 1
 
-![Notion MCP Query 1](docs/assets/images/query1.png)
+![Notion MCP Query 1](docs/assets/images/query1.jpg)
+
+#### Notion MCP Query 2
+
+![Notion MCP Query 1](docs/assets/images/query2.jpg)
+
+#### Notion MCP Query 3
+
+![Notion MCP Query 1](docs/assets/images/query3.jpg)
 
 ## Prerequisites
 
