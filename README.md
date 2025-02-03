@@ -2,12 +2,25 @@
 
 A simple Model Context Protocol (MCP) server that integrates with Notion's API to manage my personal todo list.
 
+## Demo
+
+<div align="center">
+  <video src="https://github.com/Badhansen/notion-mcp/assets/videos/notion-mcp.mp4" width="600" />
+</div>
+
+![Notion MCP Query 1](docs/assets/images/query1.png)
+
+![Notion MCP Query 1](docs/assets/images/query1.png)
+
+![Notion MCP Query 1](docs/assets/images/query1.png)
+
 ## Prerequisites
 
 -   Python 3.11 or higher
 -   A Notion account with API access
 -   A Notion integration token
 -   A Notion page where you want to manage your todo list
+-   Claude Desktop clint
 
 ## Setup
 
@@ -52,12 +65,32 @@ NOTION_VERSION="2022-06-28"
 NOTION_BASE_URL="https://api.notion.com/v1"
 ```
 
+3. To use it with Claude Desktop as intended you need to adjust your `claude_desktop_config.json` file.
+   Go to `Claude Desktop -> Settings -> Developer -> Edit Config`. Now add the `Notion` server configuration.
+
+```json
+{
+    "mcpServers": {
+        "notion-mcp": {
+            "command": "uv",
+            "args": [
+                "--directory",
+                "/Users/username/Projects/Python/notion-mcp/src" /* Path to your project */,
+                "run",
+                "server.py"
+            ]
+        }
+    }
+}
+```
+
 ## Development
 
 Project structure:
 
 ```markdown
 notion-mcp/
+├── docs/
 ├── src/
 │ └── server.py
 ├── .env
