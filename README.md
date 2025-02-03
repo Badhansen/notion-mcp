@@ -106,6 +106,45 @@ notion-mcp/
 └── uv.lock
 ```
 
+## Support Functions
+
+#### Show Tasks
+
+To show all tasks from your Notion workspace, use the `show_all_todos` function:
+
+```json
+{
+    "name": "show_all_todos",
+    "arguments": {}
+}
+```
+
+#### Add Task
+
+To add a new task to your Notion workspace, use the `add_todo` function:
+
+```json
+{
+    "name": "add_todo",
+    "arguments": {
+        "task": "Your task description"
+    }
+}
+```
+
+#### Update Task
+
+To update an existing task in your Notion workspace, use the `complete_todo` function:
+
+```json
+{
+    "name": "complete_todo",
+    "arguments": {
+        "task_id": "your-task-id"
+    }
+}
+```
+
 ## Contributing
 
 1. Fork the repository
