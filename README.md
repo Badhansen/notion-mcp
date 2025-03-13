@@ -1,5 +1,7 @@
 # notion-mcp
 
+[![smithery badge](https://smithery.ai/badge/@Badhansen/notion-mcp)](https://smithery.ai/server/@Badhansen/notion-mcp)
+
 A simple Model Context Protocol (MCP) server that integrates with Notion's API to manage my personal todo list.
 
 ## Demo
@@ -29,6 +31,14 @@ A simple Model Context Protocol (MCP) server that integrates with Notion's API t
 -   Claude Desktop clint
 
 ## Setup
+
+### Installing via Smithery
+
+To install Notion MCP for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@Badhansen/notion-mcp):
+
+```bash
+npx -y @smithery/cli install @Badhansen/notion-mcp --client claude
+```
 
 1. Clone the repository:
 
