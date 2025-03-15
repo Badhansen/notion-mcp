@@ -1,0 +1,43 @@
+# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
+
+startCommand:
+  type: stdio
+  configSchema:
+    # JSON Schema defining the configuration options for the MCP.
+    type: object
+    required:
+      - notionToken
+      - pageId
+    properties:
+      notionToken:
+        type: string
+        description: API token for the Notion integration
+      pageId:
+        type: string
+        description: The Notion page ID for the todo list
+      notionVersion:
+        type: string
+        default: 2022-06-28
+        description: Notion API version to use
+      notionBaseUrl:
+        type: string
+        default: https://api.notion.com/v1
+        description: Base URL for the Notion API
+  commandFunction:
+    # A JS function that produces the CLI command based on the given config to start the MCP on stdio.
+    |-
+    (config) => ({
+      command: 'python',
+      args: ['src/server.py'],
+      env: {
+        NOTION_TOKEN: config.notionToken,
+        PAGE_ID: config.pageId,
+        NOTION_VERSION: config.notionVersion || '2022-06-28',
+        NOTION_BASE_URL: config.notionBaseUrl || 'https://api.notion.com/v1'
+      }
+    })
+  exampleConfig:
+    notionToken: secret_exampleToken123
+    pageId: example-page-id-456
+    notionVersion: 2022-06-28
+    notionBaseUrl: https://api.notion.com/v1
