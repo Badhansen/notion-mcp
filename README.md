@@ -1,6 +1,7 @@
 # notion-mcp
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Badhansen/notion-mcp)
+[![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/Badhansen/notion-mcp)](https://archestra.ai/mcp-catalog/Badhansen__notion-mcp)
 [![smithery badge](https://smithery.ai/badge/@Badhansen/notion-mcp)](https://smithery.ai/server/@Badhansen/notion-mcp)
 
 A simple Model Context Protocol (MCP) server that integrates with Notion's API to manage my personal todo list.
