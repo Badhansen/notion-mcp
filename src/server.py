@@ -74,6 +74,97 @@ async def fetch_todos_on_page(page_id: str) -> list:
             next_cursor = data.get("next_cursor")
 
         return todos
+
+async def fetch_page_content(page_id: str) -> dict:
+    """
+    Fetch all content from a Notion page including blocks and metadata.
+    :param page_id: The ID of the Notion page (UUID format).
+    :return: Dictionary containing page metadata and content blocks.
+    """
+    async with httpx.AsyncClient() as client:
+        # Get page metadata
+        page_response = await client.get(
+            f"{NOTION_BASE_URL}/pages/{page_id}",
+            headers=headers
+        )
+        page_response.raise_for_status()
+        page_data = page_response.json()
+
+        # Get page content blocks
+        blocks = []
+        has_more = True
+        next_cursor = None
+
+        while has_more:
+            response = await client.get(
+                f"{NOTION_BASE_URL}/blocks/{page_id}/children",
+                headers=headers,
+                params={"start_cursor": next_cursor} if next_cursor else None,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            for block in data.get("results", []):
+                blocks.append(block)
+
+            has_more = data.get("has_more", False)
+            next_cursor = data.get("next_cursor")
+
+        return {
+            "page_metadata": page_data,
+            "blocks": blocks
+        }
+
+def extract_text_from_blocks(blocks: list) -> str:
+    """
+    Extract plain text content from Notion blocks.
+    :param blocks: List of Notion block objects.
+    :return: Concatenated text content.
+    """
+    text_content = []
+
+    for block in blocks:
+        block_type = block.get("type")
+
+        if block_type == "paragraph":
+            text = "".join([text["plain_text"] for text in block["paragraph"]["rich_text"]])
+            if text.strip():
+                text_content.append(text)
+        elif block_type == "heading_1":
+            text = "".join([text["plain_text"] for text in block["heading_1"]["rich_text"]])
+            if text.strip():
+                text_content.append(f"# {text}")
+        elif block_type == "heading_2":
+            text = "".join([text["plain_text"] for text in block["heading_2"]["rich_text"]])
+            if text.strip():
+                text_content.append(f"## {text}")
+        elif block_type == "heading_3":
+            text = "".join([text["plain_text"] for text in block["heading_3"]["rich_text"]])
+            if text.strip():
+                text_content.append(f"### {text}")
+        elif block_type == "bulleted_list_item":
+            text = "".join([text["plain_text"] for text in block["bulleted_list_item"]["rich_text"]])
+            if text.strip():
+                text_content.append(f"• {text}")
+        elif block_type == "numbered_list_item":
+            text = "".join([text["plain_text"] for text in block["numbered_list_item"]["rich_text"]])
+            if text.strip():
+                text_content.append(f"1. {text}")
+        elif block_type == "to_do":
+            text = "".join([text["plain_text"] for text in block["to_do"]["rich_text"]])
+            checked = "[x]" if block["to_do"]["checked"] else "[ ]"
+            if text.strip():
+                text_content.append(f"{checked} {text}")
+        elif block_type == "quote":
+            text = "".join([text["plain_text"] for text in block["quote"]["rich_text"]])
+            if text.strip():
+                text_content.append(f"> {text}")
+        elif block_type == "code":
+            text = "".join([text["plain_text"] for text in block["code"]["rich_text"]])
+            if text.strip():
+                text_content.append(f"```\n{text}\n```")
+
+    return "\n\n".join(text_content)
     
 async def create_todo_on_page(task: str) -> dict:
     """
@@ -145,6 +236,182 @@ async def complete_todo_on_page(task_id: str) -> None:
     except httpx.HTTPError as e:
         logging.info("No to-do found in the page.")
         raise ValueError(f"Error completing todo: {str(e)}")
+
+async def create_subpage(parent_page_id: str, title: str, content_blocks: list = None) -> dict:
+    """
+    Create a new subpage under a parent page.
+    :param parent_page_id: The ID of the parent page.
+    :param title: The title of the new subpage.
+    :param content_blocks: Optional list of content blocks to add to the page.
+    :return: The created page response.
+    """
+    if content_blocks is None:
+        content_blocks = []
+
+    async with httpx.AsyncClient() as client:
+        # Create the page
+        page_data = {
+            "parent": {"page_id": parent_page_id},
+            "properties": {
+                "title": {
+                    "title": [
+                        {
+                            "type": "text",
+                            "text": {"content": title}
+                        }
+                    ]
+                }
+            },
+            "children": content_blocks
+        }
+
+        response = await client.post(
+            f"{NOTION_BASE_URL}/pages",
+            headers=headers,
+            json=page_data
+        )
+        response.raise_for_status()
+        return response.json()
+
+async def add_content_to_page(page_id: str, content_blocks: list) -> dict:
+    """
+    Add content blocks to an existing page.
+    :param page_id: The ID of the page to add content to.
+    :param content_blocks: List of content blocks to add.
+    :return: The API response.
+    """
+    async with httpx.AsyncClient() as client:
+        response = await client.patch(
+            f"{NOTION_BASE_URL}/blocks/{page_id}/children",
+            headers=headers,
+            json={"children": content_blocks}
+        )
+        response.raise_for_status()
+        return response.json()
+
+def create_claude_chat_summary_blocks(conversation_summary: str, key_points: list, examples: list = None) -> list:
+    """
+    Create Notion blocks for a Claude chat summary.
+    :param conversation_summary: Brief summary of the conversation.
+    :param key_points: List of key points from the conversation.
+    :param examples: Optional list of examples discussed.
+    :return: List of Notion block objects.
+    """
+    blocks = []
+
+    # Add heading
+    blocks.append({
+        "object": "block",
+        "type": "heading_2",
+        "heading_2": {
+            "rich_text": [{"type": "text", "text": {"content": "Claude Chat Summary"}}]
+        }
+    })
+
+    # Add summary
+    blocks.append({
+        "object": "block",
+        "type": "paragraph",
+        "paragraph": {
+            "rich_text": [{"type": "text", "text": {"content": conversation_summary}}]
+        }
+    })
+
+    # Add key points
+    if key_points:
+        blocks.append({
+            "object": "block",
+            "type": "heading_3",
+            "heading_3": {
+                "rich_text": [{"type": "text", "text": {"content": "Key Points"}}]
+            }
+        })
+
+        for point in key_points:
+            blocks.append({
+                "object": "block",
+                "type": "bulleted_list_item",
+                "bulleted_list_item": {
+                    "rich_text": [{"type": "text", "text": {"content": point}}]
+                }
+            })
+
+    # Add examples if provided
+    if examples:
+        blocks.append({
+            "object": "block",
+            "type": "heading_3",
+            "heading_3": {
+                "rich_text": [{"type": "text", "text": {"content": "Examples"}}]
+            }
+        })
+
+        for example in examples:
+            blocks.append({
+                "object": "block",
+                "type": "code",
+                "code": {
+                    "rich_text": [{"type": "text", "text": {"content": example}}],
+                    "language": "text"
+                }
+            })
+
+    return blocks
+
+def create_email_blocks(subject: str, sender: str, recipient: str, body: str, date: str = None) -> list:
+    """
+    Create Notion blocks for email content.
+    :param subject: Email subject line.
+    :param sender: Email sender.
+    :param recipient: Email recipient.
+    :param body: Email body content.
+    :param date: Optional email date.
+    :return: List of Notion block objects.
+    """
+    blocks = []
+
+    # Add heading with subject
+    blocks.append({
+        "object": "block",
+        "type": "heading_2",
+        "heading_2": {
+            "rich_text": [{"type": "text", "text": {"content": f"📧 {subject}"}}]
+        }
+    })
+
+    # Add email metadata
+    metadata = f"**From:** {sender}\n**To:** {recipient}"
+    if date:
+        metadata += f"\n**Date:** {date}"
+
+    blocks.append({
+        "object": "block",
+        "type": "paragraph",
+        "paragraph": {
+            "rich_text": [{"type": "text", "text": {"content": metadata}}]
+        }
+    })
+
+    # Add separator
+    blocks.append({
+        "object": "block",
+        "type": "divider",
+        "divider": {}
+    })
+
+    # Add body content
+    body_paragraphs = body.split('\n\n')
+    for paragraph in body_paragraphs:
+        if paragraph.strip():
+            blocks.append({
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {
+                    "rich_text": [{"type": "text", "text": {"content": paragraph.strip()}}]
+                }
+            })
+
+    return blocks
 
 async def handle_add_todo(arguments: dict) -> Sequence[TextContent | EmbeddedResource]:
     """
@@ -252,6 +519,236 @@ async def handle_complete_todo(arguments: dict) -> Sequence[TextContent | Embedd
             )
         ]
 
+async def handle_read_page(arguments: dict) -> Sequence[TextContent | EmbeddedResource]:
+    """
+    Handle reading and summarizing page content.
+    """
+    if not isinstance(arguments, dict):
+        raise ValueError("Invalid arguments")
+
+    # page_id = arguments.get("page_id")
+    # todos = await fetch_todos_on_page(PAGE_ID)
+    # if not page_id:
+    #     raise ValueError("page_id is required")
+
+    try:
+        page_content = await fetch_page_content(PAGE_ID)
+        text_summary = extract_text_from_blocks(page_content["blocks"])
+
+        page_title = "Unknown Page"
+        if page_content["page_metadata"].get("properties", {}).get("title"):
+            title_prop = page_content["page_metadata"]["properties"]["title"]
+            if title_prop.get("title"):
+                page_title = "".join([t["plain_text"] for t in title_prop["title"]])
+
+        return [
+            TextContent(
+                type="text",
+                text=f"📄 **{page_title}**\n\n{text_summary}" if text_summary else f"📄 **{page_title}**\n\nNo content found on this page."
+            )
+        ]
+    except httpx.HTTPError as e:
+        logging.error(f"Notion API error: {str(e)}")
+        return [
+            TextContent(
+                type="text",
+                text=f"Error reading page: {str(e)}"
+            )
+        ]
+
+async def handle_write_chat_summary(arguments: dict) -> Sequence[TextContent | EmbeddedResource]:
+    """
+    Handle writing Claude chat summaries to a page.
+    """
+    if not isinstance(arguments, dict):
+        raise ValueError("Invalid arguments")
+
+    page_id = arguments.get("page_id", PAGE_ID)
+    summary = arguments.get("summary")
+    key_points = arguments.get("key_points", [])
+    examples = arguments.get("examples", [])
+
+    if not summary:
+        raise ValueError("summary is required")
+
+    try:
+        blocks = create_claude_chat_summary_blocks(summary, key_points, examples)
+        await add_content_to_page(page_id, blocks)
+
+        return [
+            TextContent(
+                type="text",
+                text=f"✅ Claude chat summary added to page successfully!"
+            )
+        ]
+    except httpx.HTTPError as e:
+        logging.error(f"Notion API error: {str(e)}")
+        return [
+            TextContent(
+                type="text",
+                text=f"Error writing chat summary: {str(e)}"
+            )
+        ]
+
+async def handle_add_email(arguments: dict) -> Sequence[TextContent | EmbeddedResource]:
+    """
+    Handle adding email content to a page.
+    """
+    if not isinstance(arguments, dict):
+        raise ValueError("Invalid arguments")
+
+    page_id = arguments.get("page_id", PAGE_ID)
+    subject = arguments.get("subject")
+    sender = arguments.get("sender")
+    recipient = arguments.get("recipient")
+    body = arguments.get("body")
+    date = arguments.get("date")
+
+    if not all([subject, sender, recipient, body]):
+        raise ValueError("subject, sender, recipient, and body are required")
+
+    try:
+        blocks = create_email_blocks(subject, sender, recipient, body, date)
+        await add_content_to_page(page_id, blocks)
+
+        return [
+            TextContent(
+                type="text",
+                text=f"✅ Email '{subject}' added to page successfully!"
+            )
+        ]
+    except httpx.HTTPError as e:
+        logging.error(f"Notion API error: {str(e)}")
+        return [
+            TextContent(
+                type="text",
+                text=f"Error adding email: {str(e)}"
+            )
+        ]
+
+async def handle_create_subpage(arguments: dict) -> Sequence[TextContent | EmbeddedResource]:
+    """
+    Handle creating a new subpage.
+    """
+    if not isinstance(arguments, dict):
+        raise ValueError("Invalid arguments")
+
+    parent_page_id = arguments.get("parent_page_id", PAGE_ID)
+    title = arguments.get("title")
+    initial_content = arguments.get("initial_content", "")
+
+    if not title:
+        raise ValueError("title is required")
+
+    try:
+        content_blocks = []
+        if initial_content:
+            content_blocks.append({
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {
+                    "rich_text": [{"type": "text", "text": {"content": initial_content}}]
+                }
+            })
+
+        result = await create_subpage(parent_page_id, title, content_blocks)
+        page_id = result.get("id")
+
+        return [
+            TextContent(
+                type="text",
+                text=f"✅ Subpage '{title}' created successfully! Page ID: {page_id}"
+            )
+        ]
+    except httpx.HTTPError as e:
+        logging.error(f"Notion API error: {str(e)}")
+        return [
+            TextContent(
+                type="text",
+                text=f"Error creating subpage: {str(e)}"
+            )
+        ]
+
+async def handle_add_content(arguments: dict) -> Sequence[TextContent | EmbeddedResource]:
+    """
+    Handle adding detailed content to a page.
+    """
+    if not isinstance(arguments, dict):
+        raise ValueError("Invalid arguments")
+
+    page_id = arguments.get("page_id", PAGE_ID)
+    content_type = arguments.get("content_type", "paragraph")
+    content = arguments.get("content")
+
+    if not content:
+        raise ValueError("content is required")
+
+    try:
+        blocks = []
+
+        if content_type == "paragraph":
+            for para in content.split('\n\n'):
+                if para.strip():
+                    blocks.append({
+                        "object": "block",
+                        "type": "paragraph",
+                        "paragraph": {
+                            "rich_text": [{"type": "text", "text": {"content": para.strip()}}]
+                        }
+                    })
+        elif content_type == "heading":
+            blocks.append({
+                "object": "block",
+                "type": "heading_2",
+                "heading_2": {
+                    "rich_text": [{"type": "text", "text": {"content": content}}]
+                }
+            })
+        elif content_type == "bullet_list":
+            for item in content.split('\n'):
+                if item.strip():
+                    blocks.append({
+                        "object": "block",
+                        "type": "bulleted_list_item",
+                        "bulleted_list_item": {
+                            "rich_text": [{"type": "text", "text": {"content": item.strip()}}]
+                        }
+                    })
+        elif content_type == "code":
+            blocks.append({
+                "object": "block",
+                "type": "code",
+                "code": {
+                    "rich_text": [{"type": "text", "text": {"content": content}}],
+                    "language": "text"
+                }
+            })
+        else:
+            blocks.append({
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {
+                    "rich_text": [{"type": "text", "text": {"content": content}}]
+                }
+            })
+
+        await add_content_to_page(page_id, blocks)
+
+        return [
+            TextContent(
+                type="text",
+                text=f"✅ Content added to page successfully!"
+            )
+        ]
+    except httpx.HTTPError as e:
+        logging.error(f"Notion API error: {str(e)}")
+        return [
+            TextContent(
+                type="text",
+                text=f"Error adding content: {str(e)}"
+            )
+        ]
+
 @server.list_tools()
 async def list_tools() -> list[Tool]:
     """
@@ -262,7 +759,7 @@ async def list_tools() -> list[Tool]:
     """
     return [
         Tool(
-            name="add_todo", 
+            name="add_todo",
             description="Add a new todo item",
             inputSchema={
                 "type": "object",
@@ -271,13 +768,13 @@ async def list_tools() -> list[Tool]:
                         "type": "string",
                         "description": "The todo task description",
                     },
-                    
+
                 },
                 "required": ["task"]
             }
         ),
         Tool(
-            name="show_all_todos", 
+            name="show_all_todos",
             description="Show all todo items from Notion.",
             inputSchema={
                 "type": "object",
@@ -299,12 +796,133 @@ async def list_tools() -> list[Tool]:
                 "required": ["task_id"]
             }
         ),
+        Tool(
+            name="read_page",
+            description="Read and summarize content from a Notion page.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page_id": {
+                        "type": "string",
+                        "description": "The ID of the Notion page to read."
+                    }
+                },
+                "required": ["page_id"]
+            }
+        ),
+        Tool(
+            name="write_chat_summary",
+            description="Write a Claude chat summary to a Notion page with key points and examples.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "summary": {
+                        "type": "string",
+                        "description": "Brief summary of the conversation."
+                    },
+                    "key_points": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of key points from the conversation."
+                    },
+                    "examples": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Optional list of code examples or illustrations."
+                    },
+                    "page_id": {
+                        "type": "string",
+                        "description": "Optional page ID. Uses default PAGE_ID if not provided."
+                    }
+                },
+                "required": ["summary"]
+            }
+        ),
+        Tool(
+            name="add_email",
+            description="Add email content to a Notion page with proper formatting.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "subject": {
+                        "type": "string",
+                        "description": "Email subject line."
+                    },
+                    "sender": {
+                        "type": "string",
+                        "description": "Email sender address."
+                    },
+                    "recipient": {
+                        "type": "string",
+                        "description": "Email recipient address."
+                    },
+                    "body": {
+                        "type": "string",
+                        "description": "Email body content."
+                    },
+                    "date": {
+                        "type": "string",
+                        "description": "Optional email date."
+                    },
+                    "page_id": {
+                        "type": "string",
+                        "description": "Optional page ID. Uses default PAGE_ID if not provided."
+                    }
+                },
+                "required": ["subject", "sender", "recipient", "body"]
+            }
+        ),
+        Tool(
+            name="create_subpage",
+            description="Create a new subpage under a parent page.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Title of the new subpage."
+                    },
+                    "initial_content": {
+                        "type": "string",
+                        "description": "Optional initial content for the subpage."
+                    },
+                    "parent_page_id": {
+                        "type": "string",
+                        "description": "Optional parent page ID. Uses default PAGE_ID if not provided."
+                    }
+                },
+                "required": ["title"]
+            }
+        ),
+        Tool(
+            name="add_content",
+            description="Add detailed content to a Notion page with various formatting options.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "content": {
+                        "type": "string",
+                        "description": "Content to add to the page."
+                    },
+                    "content_type": {
+                        "type": "string",
+                        "enum": ["paragraph", "heading", "bullet_list", "code"],
+                        "description": "Type of content formatting (default: paragraph)."
+                    },
+                    "page_id": {
+                        "type": "string",
+                        "description": "Optional page ID. Uses default PAGE_ID if not provided."
+                    }
+                },
+                "required": ["content"]
+            }
+        ),
     ]
 
 @server.call_tool()
 async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | EmbeddedResource]:
     """
-    Handle tool calls for todo management.
+    Handle tool calls for Notion management.
 
     Args:
         name (str): The name of the tool to call.
@@ -313,16 +931,31 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | Embedde
     Returns:
         Sequence[TextContent | EmbeddedResource]: The result of the tool call, either a success message or an error message.
     """
-    
+
     if name == "add_todo":
         return await handle_add_todo(arguments)
-    
+
     elif name == "show_all_todos" or name == "show_todos":
         return await handle_show_all_todos()
-    
+
     elif name == "complete_todo":
         return await handle_complete_todo(arguments)
-    
+
+    elif name == "read_page":
+        return await handle_read_page(arguments)
+
+    elif name == "write_chat_summary":
+        return await handle_write_chat_summary(arguments)
+
+    elif name == "add_email":
+        return await handle_add_email(arguments)
+
+    elif name == "create_subpage":
+        return await handle_create_subpage(arguments)
+
+    elif name == "add_content":
+        return await handle_add_content(arguments)
+
     raise ValueError(f"Unknown tool: {name}")
 
 async def main():
