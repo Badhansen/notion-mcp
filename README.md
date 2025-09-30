@@ -119,6 +119,34 @@ notion-mcp/
 └── uv.lock
 ```
 
+### Testing with MCP Inspector
+
+The [MCP Inspector](https://github.com/modelcontextprotocol/inspector) is an interactive developer tool for testing and debugging MCP servers. It provides a user-friendly interface to test your server functions without needing to integrate with Claude Desktop first.
+
+To run the MCP Inspector with this server:
+
+```bash
+npx @modelcontextprotocol/inspector \
+  uv \
+  --directory /Users/username/Projects/Python/notion-mcp/src \
+  run \
+  server.py
+```
+
+The Inspector will:
+
+-   Start your MCP server in debug mode
+-   Provide a web interface to test all available tools
+-   Show real-time logs and responses
+-   Allow you to validate your Notion integration before using with Claude Desktop
+
+This is particularly useful for:
+
+-   Testing your Notion API credentials and permissions
+-   Debugging tool responses and error handling
+-   Verifying your todo list operations work correctly
+-   Understanding the JSON structure of responses
+
 ## Support Functions
 
 #### Show Tasks

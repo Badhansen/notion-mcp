@@ -41,3 +41,5 @@ profile.json
 .vscode
 .env
 .venv
+
+*.egg-info
