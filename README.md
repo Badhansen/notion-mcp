@@ -67,6 +67,10 @@ uv pip install -e .
     - Click "..." menu → "Add connections"
     - Select your integration (Search by name)
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/badhansen-notion-mcp).
+
 ## Configuration
 
 1. Create `.env` file:
