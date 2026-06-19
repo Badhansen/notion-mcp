@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/badhansen-notion-mcp-badge.png)](https://mseep.ai/app/badhansen-notion-mcp)
+
 # notion-mcp
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Badhansen/notion-mcp)
